@@ -16,15 +16,27 @@
 <link rel="stylesheet" href="/static/style.css?v={{ app_version }}">
 </head>
 <body>
-<header id="topbar"><h1>Watcher</h1></header>
+<header id="topbar">
+  <h1>Watcher</h1>
+  <button id="settings-btn" data-act="open-settings" aria-label="settings">&#9881;</button>
+</header>
 <main id="view">
-  <ul id="items"></ul>
-  <p id="empty" hidden>Nothing yet — add the first one.</p>
+  <ul id="watches"></ul>
+  <p id="empty" hidden>No watches yet — add a page and tell Watcher what change you care about.</p>
 </main>
 <footer id="bottombar">
   <form id="add-form">
-    <input id="new-text" type="text" maxlength="500" placeholder="Add something" autocomplete="off">
-    <button id="add-btn" type="submit">Add</button>
+    <input id="new-url" type="url" maxlength="2000" placeholder="https://example.com/page" autocomplete="off" required>
+    <input id="new-intent" type="text" maxlength="500" placeholder="what to watch for (e.g. back in stock)" autocomplete="off" required>
+    <select id="new-interval" aria-label="check frequency">
+      <option value="15">every 15 min</option>
+      <option value="60">hourly</option>
+      <option value="360">every 6 hours</option>
+      <option value="1440" selected>daily</option>
+      <option value="10080">weekly</option>
+    </select>
+    <label class="chk"><input id="new-notify" type="checkbox" checked> email</label>
+    <button id="add-btn" type="submit">Watch</button>
   </form>
 </footer>
 
@@ -33,6 +45,29 @@
     <p id="confirm-text"></p>
     <button id="confirm-yes" data-act="confirm-yes">Delete</button>
     <button id="confirm-no" data-act="confirm-no">Cancel</button>
+  </div>
+</section>
+
+<section id="settings-overlay" class="overlay" hidden>
+  <div class="sheet">
+    <h2>Settings</h2>
+    <label>LLM endpoint<input id="set-llm-url" type="url" maxlength="2000" autocomplete="off"></label>
+    <label>Model (blank = first served)<input id="set-llm-model" type="text" maxlength="200" autocomplete="off"></label>
+    <label class="chk"><input id="set-email-enabled" type="checkbox"> email notifications</label>
+    <label>Notify address<input id="set-email-to" type="email" maxlength="300" autocomplete="off"></label>
+    <label>Send as (Gmail alias)<input id="set-email-from" type="text" maxlength="300" autocomplete="off"></label>
+    <label>Default frequency
+      <select id="set-default-interval">
+        <option value="15">every 15 min</option>
+        <option value="60">hourly</option>
+        <option value="360">every 6 hours</option>
+        <option value="1440">daily</option>
+        <option value="10080">weekly</option>
+      </select>
+    </label>
+    <p id="settings-note" class="muted">LLM API key and Gmail credential directory live in config.json / environment, not in this UI.</p>
+    <button id="save-settings" data-act="save-settings">Save</button>
+    <button id="close-settings" data-act="close-settings">Close</button>
   </div>
 </section>
 
