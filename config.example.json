@@ -1,0 +1,17 @@
+{
+  "llm": {
+    "base_url": "http://127.0.0.1:8000/v1",
+    "model": ""
+  },
+  "email": {
+    "enabled": false,
+    "to": "",
+    "from_addr": "",
+    "from_name": "Watcher",
+    "gmail_dir": "~/.gmail"
+  },
+  "scheduler": {
+    "tick_seconds": 30,
+    "default_interval_minutes": 1440
+  }
+}

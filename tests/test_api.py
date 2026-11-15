@@ -157,6 +157,40 @@ def test_settings_persist_to_config_file(tmp_path):
     assert "api_key" not in saved.get("llm", {}) or saved["llm"]["api_key"] in ("", None)
 
 
+def test_settings_put_never_writes_repo_config(client):
+    """Tripwire (scar 2026-11-15): a hermetic settings PUT once clobbered the
+    repo's real ./config.json — the file the live instance boots from. If a
+    future fixture or route starts writing there, this fails."""
+    from pathlib import Path
+    root_cfg = Path.cwd() / "config.json"
+    before = root_cfg.read_bytes() if root_cfg.exists() else None
+    client.put("/api/settings", json={"settings": {
+        "llm": {"base_url": "http://clobber-me.example/v1", "model": "x"},
+        "email": {"enabled": True, "to": "clobber@example.com"}}})
+    after = root_cfg.read_bytes() if root_cfg.exists() else None
+    assert before == after, "hermetic test wrote the repo's live config.json"
+
+
+def test_test_mode_blocks_implicit_config_write(tmp_path, monkeypatch):
+    """The guard mechanism itself: under WATCHER_TEST_MODE the implicit
+    ./config.json is never written, but an EXPLICIT config_path still is
+    (deployments and deliberate tests depend on that)."""
+    from conftest import inert_cfg
+
+    from watcher.web import create_app
+    monkeypatch.chdir(tmp_path)                    # ./config.json resolves in tmp
+    app = create_app(str(tmp_path / "b.sqlite"), cfg=inert_cfg(),
+                     start_scheduler=False)
+    app.test_client().put("/api/settings", json={"settings": {"llm": {"model": "m"}}})
+    assert not (tmp_path / "config.json").exists()
+
+    cfgp = tmp_path / "explicit.json"
+    app2 = create_app(str(tmp_path / "d.sqlite"), config_path=str(cfgp),
+                      cfg=inert_cfg(), start_scheduler=False)
+    app2.test_client().put("/api/settings", json={"settings": {"llm": {"model": "m2"}}})
+    assert json.loads(cfgp.read_text())["llm"]["model"] == "m2"
+
+
 # ---- error shape -------------------------------------------------------------
 
 def test_errors_under_api_are_json(client):

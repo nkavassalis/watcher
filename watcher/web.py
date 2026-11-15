@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import sqlite3
 from urllib.parse import urlparse
@@ -24,6 +25,11 @@ def create_app(db_path: str, config_path: str | None = None,
     app = Flask(__name__)
     app.config["DB_PATH"] = db_path
     app.config["CONFIG_PATH"] = config_path or "config.json"
+    # an explicit config path (tests that MEAN it, or a deployment flag) may
+    # be written; the implicit ./config.json is off-limits under test mode —
+    # a hermetic PUT /api/settings once clobbered the live instance's config
+    # (scar 2026-11-15; see WATCHER_TEST_MODE in tests/conftest.py).
+    app.config["CONFIG_EXPLICIT"] = config_path is not None
     app.config["CFG"] = cfg or configmod.load(config_path)
     net.configure(app.config["CFG"])
 
@@ -275,7 +281,8 @@ def create_app(db_path: str, config_path: str | None = None,
         # api_key / gmail_dir are deliberately NOT editable from the UI;
         # they live in config.json / the environment only.
         try:
-            configmod.save(app.config["CONFIG_PATH"], cfg)
+            if app.config["CONFIG_EXPLICIT"] or not os.environ.get("WATCHER_TEST_MODE"):
+                configmod.save(app.config["CONFIG_PATH"], cfg)
         except OSError:
             pass   # read-only config file must not break the running app
         net.configure(cfg)
