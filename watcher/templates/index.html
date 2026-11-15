@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Watcher</title>
+<!-- Home-screen delivery is the point (see the pwa-home-screen skill):
+     data-theme is rendered SERVER-side so dark mode never flashes white on load. -->
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+<link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
+<link rel="manifest" href="/static/manifest.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#141312">
+<link rel="stylesheet" href="/static/style.css?v={{ app_version }}">
+</head>
+<body>
+<header id="topbar"><h1>Watcher</h1></header>
+<main id="view">
+  <ul id="items"></ul>
+  <p id="empty" hidden>Nothing yet — add the first one.</p>
+</main>
+<footer id="bottombar">
+  <form id="add-form">
+    <input id="new-text" type="text" maxlength="500" placeholder="Add something" autocomplete="off">
+    <button id="add-btn" type="submit">Add</button>
+  </form>
+</footer>
+
+<section id="confirm-overlay" class="overlay" hidden>
+  <div class="sheet">
+    <p id="confirm-text"></p>
+    <button id="confirm-yes" data-act="confirm-yes">Delete</button>
+    <button id="confirm-no" data-act="confirm-no">Cancel</button>
+  </div>
+</section>
+
+<p id="toast" class="toast" hidden></p>
+<script src="/static/app.js?v={{ app_version }}"></script>
+</body>
+</html>

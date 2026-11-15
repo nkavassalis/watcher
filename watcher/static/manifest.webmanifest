@@ -1,0 +1,13 @@
+{
+  "name": "Watcher",
+  "short_name": "watcher",
+  "description": "Watcher",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#141312",
+  "theme_color": "#2f6f4e",
+  "icons": [
+    { "src": "/static/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/static/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
