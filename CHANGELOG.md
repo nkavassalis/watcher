@@ -3,6 +3,20 @@
 All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Changed
+
+- Check verdicts are now human sentences: `not yet — still shows: <needle>` /
+  `not yet — waiting for: <needle>` / `yes — found: <needle>` instead of the
+  cryptic `blocked by:` / `trigger condition met` (raw needles stay in the
+  `matched_json` column for debugging).
+- Watch rows label their parts: `WATCHING FOR: <intent>` and `Check daily ·
+  last: …`; previously the intent floated unlabelled.
+- New edit sheet (✎): change URL, intent, frequency, and the email toggle.
+  Changing URL/intent re-fits the detector automatically; the old pencil
+  (now ⟲) remains the manual re-fit.
+
 ## [0.1.0] — 2026-11-15
 
 Initial release.
@@ -27,5 +41,5 @@ Initial release.
   pause / resume, and a settings panel (LLM endpoint, notify address,
   default frequency) with masked, non-editable secrets.
 - Test tiers: 97 hermetic tests (fake fetcher, fake LLM, fake page objects,
-  fake Gmail) + 6 Playwright browser tests driving the real app against a
+  fake Gmail) + 7 Playwright browser tests driving the real app against a
   local stub shop and stub LLM.

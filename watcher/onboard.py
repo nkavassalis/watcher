@@ -98,5 +98,5 @@ def onboard(cfg: dict, conn, watch: dict) -> dict:
     if err:
         return dbmod.set_spec(conn, watch["id"], None, "needs_review", err)
     dbmod.record_check(conn, watch["id"], "ok", rung=result.rung,
-                       detail="onboarded; baseline recorded")
+                       detail="detector fitted; watching")
     return dbmod.set_spec(conn, watch["id"], json.dumps(spec), "ready", None)

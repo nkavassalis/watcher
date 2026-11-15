@@ -78,7 +78,7 @@ def evaluate(spec: dict, html: str, baseline_hash: str | None) -> dict:
         changed = baseline_hash is not None and h != baseline_hash
         return {
             "status": "changed" if changed else "ok",
-            "detail": "content changed" if changed else "content unchanged",
+            "detail": "yes — page content changed" if changed else "no change since last check",
             "matched": None,
             "snapshot_hash": h,
             "baseline_hash": h,
@@ -90,14 +90,15 @@ def evaluate(spec: dict, html: str, baseline_hash: str | None) -> dict:
     triggered = (not absent_hits) and (
         len(present_hits) >= min_present if spec.get("present") else True)
     matched = {"present_hits": present_hits, "absent_hits": absent_hits}
+    # User-facing verdicts: what happened, in words a human reads once and
+    # never has to decode. The raw needles stay in matched_json for debugging.
     if triggered:
-        detail = "trigger condition met"
+        detail = ("yes — found: " + ", ".join(present_hits[:3])
+                  if present_hits else "yes — condition met")
+    elif absent_hits:
+        detail = "not yet — still shows: " + ", ".join(absent_hits[:3])
     else:
-        if absent_hits:
-            detail = "blocked by: " + ", ".join(absent_hits[:3])
-        else:
-            detail = (f"waiting for {min_present} of "
-                      + ", ".join(spec.get("present", [])[:4]))
+        detail = "not yet — waiting for: " + ", ".join(spec.get("present", [])[:4])
     return {
         "status": "changed" if triggered else "ok",
         "detail": detail,

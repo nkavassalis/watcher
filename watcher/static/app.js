@@ -66,12 +66,13 @@ function watchRow(w) {
       <span class="glyph" title="${esc(w.status)}/${esc(w.last_status || '')}">${statusGlyph(w)}</span>
       <div class="w-body">
         <a class="w-url" href="${esc(w.url)}" target="_blank" rel="noopener noreferrer">${esc(w.url)}</a>
-        <p class="w-intent">${esc(w.intent)}</p>
-        <p class="w-meta muted">${fmtInterval(w.interval_minutes)} · last: ${esc(fmtTime(w.last_check_at))} · ${detail}</p>
+        <p class="w-intent"><span class="lbl">Watching for:</span> ${esc(w.intent)}</p>
+        <p class="w-meta muted">Check ${fmtInterval(w.interval_minutes)} · last: ${esc(fmtTime(w.last_check_at))} · ${detail}</p>
       </div>
       <div class="w-acts">
         <button data-act="check" data-id="${w.id}" title="check now">⟳</button>
-        <button data-act="reonboard" data-id="${w.id}" title="re-fit the detector">✎</button>
+        <button data-act="edit" data-id="${w.id}" title="edit">&#9998;</button>
+        <button data-act="reonboard" data-id="${w.id}" title="re-fit the detector">&#10226;</button>
         ${w.status === 'paused'
           ? `<button data-act="resume" data-id="${w.id}" title="resume">▶</button>`
           : `<button data-act="pause" data-id="${w.id}" title="pause">⏸</button>`}
@@ -173,6 +174,8 @@ $('#view').addEventListener('click', async (ev) => {
   } else if (act === 'history') {
     expandedId = (expandedId === id) ? null : id;
     if (expandedId === id) await loadHistory(id); else render();
+  } else if (act === 'edit') {
+    openEdit(id);
   } else if (act === 'del') {
     askDelete(id);
   }
@@ -204,6 +207,54 @@ $('#add-form').addEventListener('submit', async (ev) => {
     toast('Watch added — fitting detector…');
     await refresh();
   } catch (e) { toast('Add failed: ' + e.message); }
+});
+
+// ---- edit sheet ---------------------------------------------------------------
+
+let pendingEditId = null;
+
+function openEdit(id) {
+  const w = watches.find((x) => x.id === id);
+  if (!w) return;
+  pendingEditId = id;
+  $('#edit-url').value = w.url;
+  $('#edit-intent').value = w.intent;
+  $('#edit-interval').value = String(w.interval_minutes);
+  $('#edit-notify').checked = !!w.notify_email;
+  $('#edit-overlay').hidden = false;
+}
+
+function closeEdit() {
+  pendingEditId = null;
+  $('#edit-overlay').hidden = true;
+}
+
+$('#edit-overlay').addEventListener('click', async (ev) => {
+  const btn = ev.target.closest('[data-act]');
+  if (btn && btn.dataset.act === 'close-edit') return closeEdit();
+  if (btn && btn.dataset.act === 'save-edit') {
+    if (pendingEditId === null) return closeEdit();
+    const url = $('#edit-url').value.trim();
+    const intent = $('#edit-intent').value.trim();
+    if (!url || !intent) { toast('URL and intent are both required'); return; }
+    const body = {
+      url, intent,
+      interval_minutes: Number($('#edit-interval').value),
+      notify_email: $('#edit-notify').checked,
+    };
+    const w = watches.find((x) => x.id === pendingEditId);
+    const refit = w && (w.url !== url || w.intent !== intent);
+    btn.textContent = '…';
+    try {
+      await api('/api/watches/' + pendingEditId, { method: 'PUT', body: JSON.stringify(body) });
+      toast(refit ? 'Saved — re-fitting detector…' : 'Saved');
+      closeEdit();
+      await refresh();
+    } catch (e) { toast('Save failed: ' + e.message); }
+    btn.textContent = 'Save';
+    return;
+  }
+  if (ev.target === $('#edit-overlay')) closeEdit();
 });
 
 // ---- settings ---------------------------------------------------------------

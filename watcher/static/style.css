@@ -53,6 +53,8 @@ body {
 .w-url { display: block; font-size: .92rem; color: var(--fg); word-break: break-all;
   text-decoration: none; border-bottom: 1px dotted var(--line); }
 .w-intent { margin: .15rem 0 0; font-size: .95rem; }
+.w-intent .lbl { color: var(--muted); font-size: .78rem; text-transform: uppercase;
+  letter-spacing: .03em; margin-right: .3rem; }
 .w-meta { margin: .1rem 0 0; font-size: .8rem; word-break: break-word; }
 .w-notes { margin: .15rem 0 0 .5rem; font-size: .78rem; }
 .w-acts { flex: none; display: flex; gap: .15rem; }

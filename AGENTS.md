@@ -64,11 +64,11 @@ bind, `/api/health` ok, graination watch onboarded + polled.
 
 ```bash
 .venv/bin/python -m pytest              # hermetic tier: 97 pass, 1 skip (theme)
-.venv/bin/python -m pytest -m ui        # browser tier: 6 pass; needs port 8177 free
+.venv/bin/python -m pytest -m ui        # browser tier: 7 pass; needs port 8177 free
 .venv/bin/ruff check .                  # clean
 ```
 
-Current state (2026-11-15): 97 hermetic + 6 browser tests, all passing on
+Current state (2026-11-15): 97 hermetic + 7 browser tests, all passing on
 Python 3.12.3 / Flask 3.1 / Playwright 1.63 (pinned). The ui tier boots the
 real app subprocess plus a **local stub shop and local stub OpenAI endpoint**
 — no third party is contacted by either tier.
@@ -134,7 +134,11 @@ real app subprocess plus a **local stub shop and local stub OpenAI endpoint**
     `esc()`. `test_ui_contract.py` — wire it, never weaken it.
 11. Email is edge-triggered for condition specs. `test_change_triggers_once_email_on_transition`
 12. Editing url/intent always resets the watch to `pending` (spec was fitted
-    to the old page). `test_update_fields_and_reonboard_trigger`
+    to the old page). `test_update_fields_and_reonboard_trigger`,
+    `test_edit_watch_sheet` (browser tier)
+13. Check verdicts read as sentences (`not yet — still shows: …`,
+    `yes — found: …`); raw needles stay in `matched_json`, never in the row
+    text alone. (review — `test_ui_real` asserts the labelled row)
 
 ## Model provenance (the onboarding/rescue LLM the APP calls)
 

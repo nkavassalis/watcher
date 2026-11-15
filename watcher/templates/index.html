@@ -48,6 +48,27 @@
   </div>
 </section>
 
+<section id="edit-overlay" class="overlay" hidden>
+  <div class="sheet">
+    <h2>Edit watch</h2>
+    <label>URL<input id="edit-url" type="url" maxlength="2000" autocomplete="off"></label>
+    <label>What to watch for<input id="edit-intent" type="text" maxlength="500" autocomplete="off"></label>
+    <label>Check frequency
+      <select id="edit-interval">
+        <option value="15">every 15 min</option>
+        <option value="60">hourly</option>
+        <option value="360">every 6 hours</option>
+        <option value="1440">daily</option>
+        <option value="10080">weekly</option>
+      </select>
+    </label>
+    <label class="chk"><input id="edit-notify" type="checkbox"> email me</label>
+    <p id="edit-note" class="muted">Changing the URL or the “what to watch for” re-fits the detector automatically.</p>
+    <button id="save-edit" data-act="save-edit">Save</button>
+    <button id="close-edit" data-act="close-edit">Cancel</button>
+  </div>
+</section>
+
 <section id="settings-overlay" class="overlay" hidden>
   <div class="sheet">
     <h2>Settings</h2>

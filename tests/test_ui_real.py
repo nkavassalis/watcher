@@ -212,13 +212,15 @@ def test_empty_state_then_add_onboard_and_trigger(page, world):
     page.wait_for_selector(".watch.ready", timeout=WAIT_MS)
     assert page.console_messages == [], page.console_messages
     row = page.locator(".watch.ready").first
+    assert "WATCHING FOR:" in row.inner_text().upper()   # the intent is labelled, not bare
     assert "back in stock" in row.inner_text()
-    assert "stock check" in row.inner_text()          # the detector note from the spec
+    assert "Check daily" in row.inner_text()     # the frequency is labelled too
+    assert "stock check" in row.inner_text()     # the detector note from the spec
     assert page.locator("#empty").is_hidden()
 
     # out of stock still: a manual check must NOT trigger
     row.locator('[data-act="check"]').click()
-    page.wait_for_selector(".w-meta:has-text('blocked by: Out of stock')", timeout=WAIT_MS)
+    page.wait_for_selector(".w-meta:has-text('still shows: Out of stock')", timeout=WAIT_MS)
     assert page.locator(".watch.triggered").count() == 0
 
     # restock, check now -> triggered
@@ -231,6 +233,28 @@ def test_empty_state_then_add_onboard_and_trigger(page, world):
     page.locator('[data-act="history"]').first.click()
     page.wait_for_selector(".w-history .h-status.s-changed", timeout=WAIT_MS)
     page.screenshot(path=str(SHOTS / "triggered.png"))
+
+
+def test_edit_watch_sheet(page, world):
+    """Edit changes intent + interval; changing the intent re-fits the detector
+    (watch goes pending, the scheduler re-onboards it via the stub LLM)."""
+    page.goto(world["base"] + "/", wait_until="networkidle")
+    _add_watch(page, world["target"] + "/product", "back in stock")
+    page.wait_for_selector(".watch.ready", timeout=WAIT_MS)
+
+    page.locator('[data-act="edit"]').first.click()
+    page.wait_for_selector("#edit-overlay", state="visible")
+    assert page.input_value("#edit-intent") == "back in stock"
+    page.fill("#edit-intent", "price drops under 20")
+    page.select_option("#edit-interval", "60")
+    page.click("#save-edit")
+    page.wait_for_selector("#edit-overlay", state="hidden", timeout=WAIT_MS)
+
+    # saved + re-fitting: pending, then ready again with the new intent
+    page.wait_for_selector(".w-intent:has-text('price drops under 20')", timeout=WAIT_MS)
+    page.wait_for_selector(".watch.ready", timeout=WAIT_MS)
+    assert "Check hourly" in page.locator(".watch").first.inner_text()
+    assert page.console_messages == [], page.console_messages
 
 
 def test_pause_and_resume(page, world):

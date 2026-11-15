@@ -101,7 +101,7 @@ def test_onboard_success(conn, monkeypatch):
                          dbmod.get_watch(conn, w["id"]))
     assert up["status"] == "ready"
     assert json.loads(up["spec_json"])["absent"] == ["Out of stock"]
-    assert dbmod.list_checks(conn, w["id"])[0]["detail"] == "onboarded; baseline recorded"
+    assert dbmod.list_checks(conn, w["id"])[0]["detail"] == "detector fitted; watching"
 
 
 def test_onboard_fetch_failure_needs_review(conn, monkeypatch):
