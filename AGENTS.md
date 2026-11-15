@@ -216,6 +216,11 @@ reasoning trace (`agent-egress-defense` doctrine).
 - REAL: pre-push hook runs `scripts/gate.sh` (both tiers + lint) and
   `scripts/secret-scan.sh`. `gh auth status` must show `nkavassalis`; org
   confirmed as `nkavassalis`; visibility public by Nick's request.
+- Commit identity: author must be `Nick Kavassalis <nick@kavassalis.com>` —
+  the house git identity, also pinned repo-locally (`git config user.*`).
+  Never invent a noreply email: `nick@users.noreply.github.com` belongs to a
+  DIFFERENT GitHub account (login `nick`) and silently mis-attributes commits
+  (scar 2026-11-15; fixed by author rewrite + force-with-lease).
 - The repo contains **no internal IPs/hostnames/paths** — the real LLM
   endpoint and LAN bind live only in gitignored `config.json` / the
   environment. The graination URL is an approved example (Nick, 2026-11-15).
