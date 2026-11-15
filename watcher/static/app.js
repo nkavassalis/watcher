@@ -65,7 +65,8 @@ function watchRow(w) {
     <div class="w-main">
       <span class="glyph" title="${esc(w.status)}/${esc(w.last_status || '')}">${statusGlyph(w)}</span>
       <div class="w-body">
-        <a class="w-url" href="${esc(w.url)}" target="_blank" rel="noopener noreferrer">${esc(w.url)}</a>
+        <a class="w-title" href="${esc(w.url)}" target="_blank" rel="noopener noreferrer">${esc(w.name || w.url)}</a>
+        <p class="w-sub"><a class="w-url" href="${esc(w.url)}" target="_blank" rel="noopener noreferrer">${esc(w.url)}</a></p>
         <p class="w-intent"><span class="lbl">Watching for:</span> ${esc(w.intent)}</p>
         <p class="w-meta muted">Check ${fmtInterval(w.interval_minutes)} · last: ${esc(fmtTime(w.last_check_at))} · ${detail}</p>
       </div>
@@ -195,12 +196,14 @@ $('#add-form').addEventListener('submit', async (ev) => {
       method: 'POST',
       body: JSON.stringify({
         url, intent,
+        name: $('#new-name').value.trim() || undefined,
         interval_minutes: Number($('#new-interval').value),
         notify_email: $('#new-notify').checked,
       }),
     });
     $('#new-url').value = '';
     $('#new-intent').value = '';
+    $('#new-name').value = '';
     toast('Watch added — fitting detector…');
     await refresh();
   } catch (e) { toast('Add failed: ' + e.message); }
@@ -214,6 +217,7 @@ function openEdit(id) {
   const w = watches.find((x) => x.id === id);
   if (!w) return;
   pendingEditId = id;
+  $('#edit-name').value = w.name || w.url;
   $('#edit-url').value = w.url;
   $('#edit-intent').value = w.intent;
   $('#edit-interval').value = String(w.interval_minutes);
@@ -245,8 +249,10 @@ $('#edit-overlay').addEventListener('click', async (ev) => {
     if (pendingEditId === null) return closeEdit();
     const url = $('#edit-url').value.trim();
     const intent = $('#edit-intent').value.trim();
+    const name = $('#edit-name').value.trim();
     if (!url || !intent) { toast('URL and intent are both required'); return; }
     const body = {
+      name: name || url,
       url, intent,
       interval_minutes: Number($('#edit-interval').value),
       notify_email: $('#edit-notify').checked,

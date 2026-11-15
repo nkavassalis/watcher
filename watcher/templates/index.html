@@ -26,6 +26,7 @@
 </main>
 <footer id="bottombar">
   <form id="add-form">
+    <input id="new-name" type="text" maxlength="200" placeholder="name (optional)" autocomplete="off">
     <input id="new-url" type="url" maxlength="2000" placeholder="https://example.com/page" autocomplete="off" required>
     <input id="new-intent" type="text" maxlength="500" placeholder="what to watch for (e.g. back in stock)" autocomplete="off" required>
     <select id="new-interval" aria-label="check frequency">
@@ -51,6 +52,7 @@
 <section id="edit-overlay" class="overlay" hidden>
   <div class="sheet">
     <h2>Edit watch</h2>
+    <label>Name<input id="edit-name" type="text" maxlength="200" autocomplete="off"></label>
     <label>URL<input id="edit-url" type="url" maxlength="2000" autocomplete="off"></label>
     <label>What to watch for<input id="edit-intent" type="text" maxlength="500" autocomplete="off"></label>
     <label>Check frequency

@@ -12,11 +12,36 @@ def test_create_list_get(conn):
     assert dbmod.list_watches(conn) == []
     w = _mk(conn)
     assert w["status"] == "pending" and w["spec_json"] is None
+    assert w["name"] == w["url"]                       # display name defaults to url
+    w2 = dbmod.create_watch(conn, "https://e.example/p", "i", 60, 1, name="Double X")
+    assert w2["name"] == "Double X"
     assert w["interval_minutes"] == 1440 and w["notify_email"] == 1
     assert w["next_check_at"] <= dbmod.now_iso()          # due for onboarding now
-    assert [r["id"] for r in dbmod.list_watches(conn)] == [w["id"]]
+    assert [r["id"] for r in dbmod.list_watches(conn)] == [w2["id"], w["id"]]
     assert dbmod.get_watch(conn, w["id"])["url"] == "https://example.com/p"
     assert dbmod.get_watch(conn, 999) is None
+
+
+def test_name_migration_backfills(tmp_path):
+    """Old DBs (no name column) gain it additively and backfill from url."""
+    import sqlite3
+    path = str(tmp_path / "old.sqlite")
+    legacy = sqlite3.connect(path)
+    legacy.execute(
+        "CREATE TABLE watches (id INTEGER PRIMARY KEY, url TEXT NOT NULL,"
+        " intent TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending',"
+        " spec_json TEXT, interval_minutes INTEGER NOT NULL DEFAULT 1440,"
+        " notify_email INTEGER NOT NULL DEFAULT 1, baseline_hash TEXT,"
+        " last_check_at TEXT, next_check_at TEXT, last_status TEXT,"
+        " last_detail TEXT, fail_streak INTEGER NOT NULL DEFAULT 0,"
+        " onboard_error TEXT, created_at TEXT, updated_at TEXT)")
+    legacy.execute("INSERT INTO watches (url, intent) VALUES ('https://x.example/p', 'i')")
+    legacy.commit()
+    legacy.close()
+    c = dbmod.connect(path)
+    dbmod.init_db(c)                      # runs _migrate
+    assert dbmod.list_watches(c)[0]["name"] == "https://x.example/p"
+    c.close()
 
 
 def test_update_whitelist_and_delete(conn):

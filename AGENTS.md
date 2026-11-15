@@ -24,7 +24,8 @@ JSON, and testable without any model.
 run.py                  thin wrapper; the real entrypoint is watcher/cli.py
 watcher/cli.py          argparse entry; daemon launch is `python -m watcher`
 watcher/config.py       DEFAULTS <- config.json <- env, deep-merged; masked_config()
-watcher/db.py           ALL SQL: watches, checks, per-host backoff table
+watcher/db.py           ALL SQL: watches, checks, per-host backoff table;
+                        additive _migrate() only (name column backfill 2026-11-15)
 watcher/net.py          the one outbound path: cookie jar (rung 0), delayed
                         browser-header retry (rung 1), ladder orchestration
 watcher/browser.py      rungs 2-4: persistent-context Chromium, consent rules,
@@ -139,6 +140,15 @@ real app subprocess plus a **local stub shop and local stub OpenAI endpoint**
 13. Check verdicts read as sentences (`not yet — still shows: …`,
     `yes — found: …`); raw needles stay in `matched_json`, never in the row
     text alone. (review — `test_ui_real` asserts the labelled row)
+14. `watches.name` is display-only: defaults to the url, editable without
+    re-fitting the detector (only url/intent edits re-fit).
+    `test_add_and_update_name`, `test_name_migration_backfills`
+15. Hermetic tests never write the repo's `./config.json`: conftest sets
+    `WATCHER_TEST_MODE=1` (create_app refuses implicit saves) and passes an
+    explicit tmp config path. `test_settings_put_never_writes_repo_config`,
+    `test_test_mode_blocks_implicit_config_write`. This is the sandbox-
+    fingerprint rule: a hermetic run once clobbered the LIVE instance's
+    config (2026-11-15) — treat any new file-writing route the same way.
 
 ## Model provenance (the onboarding/rescue LLM the APP calls)
 

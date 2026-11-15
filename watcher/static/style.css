@@ -50,8 +50,11 @@ body {
 .watch.triggered .glyph { color: var(--accent); font-weight: 700; }
 .watch.needs_review .glyph { color: var(--danger); font-weight: 700; }
 .watch.pending .glyph { color: var(--warn); }
-.w-url { display: block; font-size: .92rem; color: var(--fg); word-break: break-all;
-  text-decoration: none; border-bottom: 1px dotted var(--line); }
+.w-title { display: block; font-size: .98rem; font-weight: 600; color: var(--fg);
+  text-decoration: none; word-break: break-word; }
+.w-sub { margin: 0; }
+.w-url { display: block; font-size: .78rem; color: var(--muted); word-break: break-all;
+  text-decoration: none; }
 .w-intent { margin: .15rem 0 0; font-size: .95rem; }
 .w-intent .lbl { color: var(--muted); font-size: .78rem; text-transform: uppercase;
   letter-spacing: .03em; margin-right: .3rem; }
@@ -72,6 +75,7 @@ body {
 
 /* ---- add form ------------------------------------------------------------ */
 #add-form { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+#new-name { flex: 1 1 8rem; }
 #new-url { flex: 2 1 14rem; }
 #new-intent { flex: 3 1 14rem; }
 #add-form input, #add-form select, .sheet input, .sheet select {

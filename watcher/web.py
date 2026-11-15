@@ -122,6 +122,7 @@ def create_app(db_path: str, config_path: str | None = None,
         intent = _str(data, "intent")
         if not intent:
             return jsonify(error="intent required (what change do you want to hear about?)"), 400
+        name = _str(data, "name", maxlen=200) if "name" in data else None
         sched_cfg = app.config["CFG"]["scheduler"]
         interval = data.get("interval_minutes", sched_cfg["default_interval_minutes"])
         interval = _int({"i": interval}, "i", sched_cfg["min_interval_minutes"], 525600)
@@ -137,7 +138,7 @@ def create_app(db_path: str, config_path: str | None = None,
         c = conn()
         try:
             return jsonify(watch=dbmod.create_watch(c, url, intent, interval,
-                                                    notify_email)), 201
+                                                    notify_email, name)), 201
         finally:
             c.close()
 
@@ -157,6 +158,11 @@ def create_app(db_path: str, config_path: str | None = None,
             if not intent:
                 return jsonify(error="intent must be a non-empty string"), 400
             fields["intent"] = intent
+        if "name" in data:
+            name = _str(data, "name", maxlen=200)
+            if not name:
+                return jsonify(error="name must be a non-empty string"), 400
+            fields["name"] = name
         if "interval_minutes" in data:
             sched_cfg = app.config["CFG"]["scheduler"]
             iv = _int(data, "interval_minutes", sched_cfg["min_interval_minutes"], 525600)

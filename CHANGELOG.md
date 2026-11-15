@@ -5,6 +5,24 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- Watches have a display `name`: set it when adding (or edit it later in the
+  pencil sheet); it defaults to the URL and becomes the row title, with the
+  raw URL kept as a small subtitle. Additive DB migration backfills existing
+  rows from their url.
+
+### Fixed
+
+- `pytest.ini` was never committed — the seeder's `.gitignore` `*.ini` pattern
+  silently ate it, so clones ran the whole suite un-deselected with no `ui`
+  marker registered. Now un-ignored and tracked.
+- Hermetic `PUT /api/settings` wrote the repo's real `./config.json` — the
+  file the live instance boots from — clobbering it with test values
+  (2026-11-15). `create_app` now refuses implicit-config writes under
+  `WATCHER_TEST_MODE` (set by conftest), fixtures pass an explicit tmp
+  config path, and a tripwire test asserts `./config.json` never changes.
+
 ### Changed
 
 - Check verdicts are now human sentences: `not yet — still shows: <needle>` /

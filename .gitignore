@@ -14,6 +14,8 @@ htmlcov/
 .env.*
 !.env.example
 *.ini
+# (the house two-tier pytest config IS tracked; *.ini once silently ate it)
+!pytest.ini
 config.json
 config.local.yaml
 secrets/

@@ -20,8 +20,19 @@ def test_add_defaults(client, app):
     assert r.status_code == 201
     w = r.get_json()["watch"]
     assert w["intent"] == "back in stock"                # whitespace-collapsed
+    assert w["name"] == w["url"]                         # friendly name defaults to url
     assert w["status"] == "pending" and w["interval_minutes"] == 1440
     assert w["notify_email"] == 1
+
+
+def test_add_and_update_name(client):
+    w = _add(client, name="  Double X film  ").get_json()["watch"]
+    assert w["name"] == "Double X film"
+    r = client.put(f"/api/watches/{w['id']}", json={"name": "B&W film restock"})
+    assert r.get_json()["watch"]["name"] == "B&W film restock"
+    assert r.get_json()["watch"]["status"] == "pending"  # name edit does NOT re-fit
+    assert client.put(f"/api/watches/{w['id']}", json={"name": "   "}).status_code == 400
+    assert client.put(f"/api/watches/{w['id']}", json={"name": 42}).status_code == 400
 
 
 def test_add_validation(client):

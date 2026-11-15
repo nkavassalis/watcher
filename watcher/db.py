@@ -13,6 +13,7 @@ SCHEMA = """
 CREATE TABLE IF NOT EXISTS watches (
   id               INTEGER PRIMARY KEY,
   url              TEXT NOT NULL,
+  name             TEXT,                               -- display name; defaults to url
   intent           TEXT NOT NULL,
   status           TEXT NOT NULL DEFAULT 'pending',  -- pending|ready|needs_review|paused
   spec_json        TEXT,                              -- detection spec produced at onboarding
@@ -50,7 +51,7 @@ CREATE TABLE IF NOT EXISTS hosts (
 );
 """
 
-WATCH_FIELDS = ("url", "intent", "interval_minutes", "notify_email", "status")
+WATCH_FIELDS = ("url", "name", "intent", "interval_minutes", "notify_email", "status")
 
 # statuses that count as "the source is refusing us" -> host backoff
 BLOCKED_STATUSES = ("blocked",)
@@ -76,7 +77,16 @@ def connect(path: str) -> sqlite3.Connection:
 
 def init_db(conn: sqlite3.Connection) -> None:
     conn.executescript(SCHEMA)
+    _migrate(conn)
     conn.commit()
+
+
+def _migrate(conn: sqlite3.Connection) -> None:
+    """Additive-only migrations (house rule): ALTER TABLE ADD COLUMN, backfill."""
+    cols = {r["name"] for r in conn.execute("PRAGMA table_info(watches)")}
+    if "name" not in cols:
+        conn.execute("ALTER TABLE watches ADD COLUMN name TEXT")
+        conn.execute("UPDATE watches SET name=url WHERE name IS NULL")
 
 
 def path_of(conn: sqlite3.Connection) -> str:
@@ -87,11 +97,13 @@ def path_of(conn: sqlite3.Connection) -> str:
 # ---- watches ---------------------------------------------------------------
 
 def create_watch(conn: sqlite3.Connection, url: str, intent: str,
-                 interval_minutes: int, notify_email: int) -> dict:
+                 interval_minutes: int, notify_email: int,
+                 name: str | None = None) -> dict:
     cur = conn.execute(
-        "INSERT INTO watches (url, intent, interval_minutes, notify_email, next_check_at)"
-        " VALUES (?, ?, ?, ?, ?)",
-        (url, intent, interval_minutes, notify_email, now_iso()),  # due immediately: onboarding
+        "INSERT INTO watches (url, name, intent, interval_minutes, notify_email, next_check_at)"
+        " VALUES (?, ?, ?, ?, ?, ?)",
+        (url, name or url, intent, interval_minutes, notify_email,
+         now_iso()),  # due immediately: onboarding
     )
     conn.commit()
     return get_watch(conn, cur.lastrowid)

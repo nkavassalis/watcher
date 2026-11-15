@@ -196,7 +196,9 @@ def test_rigid_shell_page_never_scrolls(page, world):
 
 # --- the app itself --------------------------------------------------------------------
 
-def _add_watch(page, url, intent, interval="1440"):
+def _add_watch(page, url, intent, interval="1440", name=""):
+    if name:
+        page.fill("#new-name", name)
     page.fill("#new-url", url)
     page.fill("#new-intent", intent)
     page.select_option("#new-interval", interval)
@@ -207,11 +209,14 @@ def test_empty_state_then_add_onboard_and_trigger(page, world):
     page.goto(world["base"] + "/", wait_until="networkidle")
     assert page.is_visible("#empty")
 
-    _add_watch(page, world["target"] + "/product", "back in stock")
+    _add_watch(page, world["target"] + "/product", "back in stock", name="Double X film")
     # the row appears as pending, then the scheduler onboards it via the stub LLM
     page.wait_for_selector(".watch.ready", timeout=WAIT_MS)
     assert page.console_messages == [], page.console_messages
     row = page.locator(".watch.ready").first
+    # the friendly name is the title; the raw url stays as the small subtitle
+    assert "Double X film" in row.locator(".w-title").inner_text()
+    assert "/product" in row.locator(".w-url").inner_text()
     assert "WATCHING FOR:" in row.inner_text().upper()   # the intent is labelled, not bare
     assert "back in stock" in row.inner_text()
     assert "Check daily" in row.inner_text()     # the frequency is labelled too
@@ -245,6 +250,8 @@ def test_edit_watch_sheet(page, world):
     page.locator('[data-act="edit"]').first.click()
     page.wait_for_selector("#edit-overlay", state="visible")
     assert page.input_value("#edit-intent") == "back in stock"
+    assert page.input_value("#edit-name").endswith("/product")   # defaults to the url
+    page.fill("#edit-name", "Graination Double X")
     page.fill("#edit-intent", "price drops under 20")
     page.select_option("#edit-interval", "60")
     page.click("#save-edit")
@@ -252,6 +259,7 @@ def test_edit_watch_sheet(page, world):
 
     # saved + re-fitting: pending, then ready again with the new intent
     page.wait_for_selector(".w-intent:has-text('price drops under 20')", timeout=WAIT_MS)
+    assert "Graination Double X" in page.locator(".w-title").first.inner_text()
     page.wait_for_selector(".watch.ready", timeout=WAIT_MS)
     assert "Check hourly" in page.locator(".watch").first.inner_text()
     assert page.console_messages == [], page.console_messages
