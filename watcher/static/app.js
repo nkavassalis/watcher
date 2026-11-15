@@ -72,7 +72,6 @@ function watchRow(w) {
       <div class="w-acts">
         <button data-act="check" data-id="${w.id}" title="check now">⟳</button>
         <button data-act="edit" data-id="${w.id}" title="edit">&#9998;</button>
-        <button data-act="reonboard" data-id="${w.id}" title="re-fit the detector">&#10226;</button>
         ${w.status === 'paused'
           ? `<button data-act="resume" data-id="${w.id}" title="resume">▶</button>`
           : `<button data-act="pause" data-id="${w.id}" title="pause">⏸</button>`}
@@ -165,8 +164,6 @@ $('#view').addEventListener('click', async (ev) => {
   if (act === 'check') {
     btn.textContent = '…';
     await postWatch(id, 'check', 'Checked');
-  } else if (act === 'reonboard') {
-    await postWatch(id, 'reonboard', 'Re-fitting detector…');
   } else if (act === 'pause') {
     await patchWatch(id, { status: 'paused' }, 'Paused');
   } else if (act === 'resume') {
@@ -232,6 +229,18 @@ function closeEdit() {
 $('#edit-overlay').addEventListener('click', async (ev) => {
   const btn = ev.target.closest('[data-act]');
   if (btn && btn.dataset.act === 'close-edit') return closeEdit();
+  if (btn && btn.dataset.act === 'refit-edit') {
+    if (pendingEditId === null) return closeEdit();
+    btn.textContent = '…';
+    try {
+      await api(`/api/watches/${pendingEditId}/reonboard`, { method: 'POST' });
+      toast('Re-fitting detector…');
+      closeEdit();
+      await refresh();
+    } catch (e) { toast('Re-fit failed: ' + e.message); }
+    btn.textContent = 'Re-fit detector';
+    return;
+  }
   if (btn && btn.dataset.act === 'save-edit') {
     if (pendingEditId === null) return closeEdit();
     const url = $('#edit-url').value.trim();

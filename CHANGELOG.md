@@ -14,8 +14,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Watch rows label their parts: `WATCHING FOR: <intent>` and `Check daily ·
   last: …`; previously the intent floated unlabelled.
 - New edit sheet (✎): change URL, intent, frequency, and the email toggle.
-  Changing URL/intent re-fits the detector automatically; the old pencil
-  (now ⟲) remains the manual re-fit.
+  Changing URL/intent re-fits the detector automatically; manual re-fit is an
+  explicit "Re-fit detector" button inside the same sheet (the separate row
+  button is gone).
 
 ## [0.1.0] — 2026-11-15
 

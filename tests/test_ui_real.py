@@ -256,6 +256,17 @@ def test_edit_watch_sheet(page, world):
     assert "Check hourly" in page.locator(".watch").first.inner_text()
     assert page.console_messages == [], page.console_messages
 
+    # re-fit is an option inside the edit sheet (no stray row button anymore)
+    assert page.locator('[data-act="reonboard"]').count() == 0
+    page.locator('[data-act="edit"]').first.click()
+    page.wait_for_selector("#edit-overlay", state="visible")
+    page.click("#refit-edit")
+    page.wait_for_selector("#toast:has-text('Re-fitting detector')", state="visible",
+                           timeout=WAIT_MS)
+    page.wait_for_selector("#edit-overlay", state="hidden", timeout=WAIT_MS)
+    page.wait_for_selector(".watch.ready", timeout=WAIT_MS)
+    assert page.console_messages == [], page.console_messages
+
 
 def test_pause_and_resume(page, world):
     page.goto(world["base"] + "/", wait_until="networkidle")
