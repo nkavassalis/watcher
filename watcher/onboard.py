@@ -39,13 +39,16 @@ def _prompt(url: str, intent: str, digest: str, feedback: str | None) -> list[di
         ' "present":["string",...],   // texts whose APPEARANCE means the user\'s condition is met\n'
         ' "absent":["string",...],    // texts whose PRESENCE means it is NOT met (e.g. "out of stock")\n'
         ' "min_present":1,\n'
+        ' "name":"short human label for this watch, <= 60 chars, e.g. \'Reflx Lab Double X — back in stock\'",\n'
         ' "current_met": true|false, // your judgement: is the condition met on THIS page right now?\n'
         ' "notes":"one short sentence for the user"}\n'
         "Rules: use mode 'hash' only if the user wants any change on the page. "
         "Needles must be short literal strings that appear (or would appear) on "
         "the page — prefer stable machine signals from json-ld (e.g. "
         "schema.org/InStock, schema.org/OutOfStock) over marketing prose. "
-        "absent needles must not match when the condition IS met."
+        "absent needles must not match when the condition IS met. "
+        "The name should identify the thing being watched (product/page title) "
+        "plus the intent — not the raw URL."
     )
     user = f"URL: {url}\nUser intent: {intent}\n\nPage snapshot:\n{digest}"
     if feedback:
@@ -55,8 +58,10 @@ def _prompt(url: str, intent: str, digest: str, feedback: str | None) -> list[di
     return [{"role": "system", "content": system}, {"role": "user", "content": user}]
 
 
-def build_spec(cfg: dict, url: str, intent: str, html: str) -> tuple[dict | None, str | None]:
-    """Returns (spec, error). Raises nothing; LLM failures come back as error."""
+def build_spec(cfg: dict, url: str, intent: str, html: str) -> tuple[dict | None, str | None, str | None]:
+    """Returns (spec, suggested_name, error). Raises nothing; LLM failures come
+    back as error. The name is a SUGGESTION — the caller decides whether to
+    keep it (it only sticks on watches the user never named)."""
     max_chars = cfg["llm"].get("max_html_chars", 24000)
     digest = page_digest(html, max_chars)
     feedback = None
@@ -64,8 +69,13 @@ def build_spec(cfg: dict, url: str, intent: str, html: str) -> tuple[dict | None
         try:
             raw = llm.chat_json(cfg, _prompt(url, intent, digest, feedback))
         except llm.LLMError as e:
-            return None, str(e)
+            return None, None, str(e)
         current_met = raw.pop("current_met", None)
+        suggested = raw.pop("name", None)
+        if not isinstance(suggested, str) or not suggested.strip():
+            suggested = None
+        else:
+            suggested = " ".join(suggested.split())[:60]
         err = evaluate.validate_spec(raw)
         if err:
             feedback = f"invalid spec: {err}"
@@ -76,11 +86,11 @@ def build_spec(cfg: dict, url: str, intent: str, html: str) -> tuple[dict | None
             feedback = "missing or non-boolean current_met"
             continue
         if verdict == current_met:
-            return spec, None
+            return spec, suggested, None
         feedback = (f"local evaluation says condition is "
                     f"{'MET' if verdict else 'NOT met'} on this page, "
                     f"you predicted current_met={current_met}")
-    return None, f"spec failed cross-check after 2 attempts: {feedback}"
+    return None, None, f"spec failed cross-check after 2 attempts: {feedback}"
 
 
 def onboard(cfg: dict, conn, watch: dict) -> dict:
@@ -93,10 +103,16 @@ def onboard(cfg: dict, conn, watch: dict) -> dict:
                            detail=f"onboard fetch failed: {reason}")
         return dbmod.set_spec(conn, watch["id"], None, "needs_review",
                               f"could not fetch page: {reason}")
-    spec, err = build_spec(cfg, watch["url"], watch["intent"], result.text)
+    spec, suggested_name, err = build_spec(cfg, watch["url"], watch["intent"], result.text)
     from . import db as dbmod
     if err:
         return dbmod.set_spec(conn, watch["id"], None, "needs_review", err)
+    # The LLM name only sticks while the watch is unnamed, or already carries
+    # an auto-name (a re-fit may improve it). A user-typed name is never touched.
+    if suggested_name and (watch["name"] is None or watch["name"] == watch["url"]
+                           or watch.get("name_is_auto")):
+        dbmod.update_watch(conn, watch["id"],
+                           {"name": suggested_name, "name_is_auto": 1})
     dbmod.record_check(conn, watch["id"], "ok", rung=result.rung,
                        detail="detector fitted; watching")
     return dbmod.set_spec(conn, watch["id"], json.dumps(spec), "ready", None)

@@ -13,7 +13,8 @@ SCHEMA = """
 CREATE TABLE IF NOT EXISTS watches (
   id               INTEGER PRIMARY KEY,
   url              TEXT NOT NULL,
-  name             TEXT,                               -- display name; defaults to url
+  name             TEXT,                               -- display name; NULL until set (user or LLM auto)
+  name_is_auto     INTEGER NOT NULL DEFAULT 0,         -- 1 = LLM-guessed at onboarding; user edits clear it
   intent           TEXT NOT NULL,
   status           TEXT NOT NULL DEFAULT 'pending',  -- pending|ready|needs_review|paused
   spec_json        TEXT,                              -- detection spec produced at onboarding
@@ -51,7 +52,8 @@ CREATE TABLE IF NOT EXISTS hosts (
 );
 """
 
-WATCH_FIELDS = ("url", "name", "intent", "interval_minutes", "notify_email", "status")
+WATCH_FIELDS = ("url", "name", "name_is_auto", "intent", "interval_minutes",
+                "notify_email", "status")
 
 # statuses that count as "the source is refusing us" -> host backoff
 BLOCKED_STATUSES = ("blocked",)
@@ -87,6 +89,12 @@ def _migrate(conn: sqlite3.Connection) -> None:
     if "name" not in cols:
         conn.execute("ALTER TABLE watches ADD COLUMN name TEXT")
         conn.execute("UPDATE watches SET name=url WHERE name IS NULL")
+    if "name_is_auto" not in cols:
+        conn.execute(
+            "ALTER TABLE watches ADD COLUMN name_is_auto INTEGER NOT NULL DEFAULT 0")
+        # a name that is just the url was never a real name: hand it back to
+        # the onboarding auto-guesser (user-typed names keep name_is_auto=0)
+        conn.execute("UPDATE watches SET name=NULL WHERE name=url")
 
 
 def path_of(conn: sqlite3.Connection) -> str:
@@ -99,10 +107,12 @@ def path_of(conn: sqlite3.Connection) -> str:
 def create_watch(conn: sqlite3.Connection, url: str, intent: str,
                  interval_minutes: int, notify_email: int,
                  name: str | None = None) -> dict:
+    """name=None stays NULL: the onboarding LLM pass auto-guesses it (and the
+    UI falls back to the url until then)."""
     cur = conn.execute(
         "INSERT INTO watches (url, name, intent, interval_minutes, notify_email, next_check_at)"
         " VALUES (?, ?, ?, ?, ?, ?)",
-        (url, name or url, intent, interval_minutes, notify_email,
+        (url, name, intent, interval_minutes, notify_email,
          now_iso()),  # due immediately: onboarding
     )
     conn.commit()

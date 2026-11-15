@@ -159,10 +159,18 @@ def create_app(db_path: str, config_path: str | None = None,
                 return jsonify(error="intent must be a non-empty string"), 400
             fields["intent"] = intent
         if "name" in data:
-            name = _str(data, "name", maxlen=200)
-            if not name:
-                return jsonify(error="name must be a non-empty string"), 400
-            fields["name"] = name
+            raw_name = data["name"]
+            if raw_name is None or (isinstance(raw_name, str) and not raw_name.strip()):
+                # cleared: fall back to the url display until the next re-fit,
+                # which may auto-name it again (name_is_auto=1 = still owned by the LLM)
+                fields["name"] = None
+                fields["name_is_auto"] = 1
+            else:
+                name = _str(data, "name", maxlen=200)
+                if not name:
+                    return jsonify(error="name must be a non-empty string or empty to clear"), 400
+                fields["name"] = name
+                fields["name_is_auto"] = 0      # a user-set name outranks the LLM guess
         if "interval_minutes" in data:
             sched_cfg = app.config["CFG"]["scheduler"]
             iv = _int(data, "interval_minutes", sched_cfg["min_interval_minutes"], 525600)

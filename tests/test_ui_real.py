@@ -105,7 +105,8 @@ def make_llm():
         met = "Out of stock" not in prompt
         spec = {"mode": "condition", "present": ["In stock"],
                 "absent": ["Out of stock"], "min_present": 1,
-                "current_met": met, "notes": "stock check"}
+                "current_met": met, "notes": "stock check",
+                "name": "Stub stock watch"}
         return json.dumps({"choices": [{"message": {"content": json.dumps(spec)}}]})
 
     return app
@@ -214,8 +215,9 @@ def test_empty_state_then_add_onboard_and_trigger(page, world):
     page.wait_for_selector(".watch.ready", timeout=WAIT_MS)
     assert page.console_messages == [], page.console_messages
     row = page.locator(".watch.ready").first
-    # the friendly name is the title; the raw url stays as the small subtitle
+    # a user-typed name survives onboarding (the LLM's guess is ignored)
     assert "Double X film" in row.locator(".w-title").inner_text()
+    assert "Stub stock watch" not in row.inner_text()
     assert "/product" in row.locator(".w-url").inner_text()
     assert "WATCHING FOR:" in row.inner_text().upper()   # the intent is labelled, not bare
     assert "back in stock" in row.inner_text()
@@ -246,11 +248,13 @@ def test_edit_watch_sheet(page, world):
     page.goto(world["base"] + "/", wait_until="networkidle")
     _add_watch(page, world["target"] + "/product", "back in stock")
     page.wait_for_selector(".watch.ready", timeout=WAIT_MS)
+    # unnamed watch: the onboarding LLM pass named it automatically
+    assert "Stub stock watch" in page.locator(".w-title").first.inner_text()
 
     page.locator('[data-act="edit"]').first.click()
     page.wait_for_selector("#edit-overlay", state="visible")
     assert page.input_value("#edit-intent") == "back in stock"
-    assert page.input_value("#edit-name").endswith("/product")   # defaults to the url
+    assert page.input_value("#edit-name") == "Stub stock watch"   # the auto name, editable
     page.fill("#edit-name", "Graination Double X")
     page.fill("#edit-intent", "price drops under 20")
     page.select_option("#edit-interval", "60")
@@ -264,8 +268,7 @@ def test_edit_watch_sheet(page, world):
     assert "Check hourly" in page.locator(".watch").first.inner_text()
     assert page.console_messages == [], page.console_messages
 
-    # re-fit is an option inside the edit sheet (no stray row button anymore)
-    assert page.locator('[data-act="reonboard"]').count() == 0
+    # re-fit regenerates the detector but never touches a user-set name
     page.locator('[data-act="edit"]').first.click()
     page.wait_for_selector("#edit-overlay", state="visible")
     page.click("#refit-edit")
@@ -273,6 +276,8 @@ def test_edit_watch_sheet(page, world):
                            timeout=WAIT_MS)
     page.wait_for_selector("#edit-overlay", state="hidden", timeout=WAIT_MS)
     page.wait_for_selector(".watch.ready", timeout=WAIT_MS)
+    assert "Graination Double X" in page.locator(".w-title").first.inner_text()
+    assert "Stub stock watch" not in page.locator(".watch").first.inner_text()
     assert page.console_messages == [], page.console_messages
 
 

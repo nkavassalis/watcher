@@ -217,7 +217,7 @@ function openEdit(id) {
   const w = watches.find((x) => x.id === id);
   if (!w) return;
   pendingEditId = id;
-  $('#edit-name').value = w.name || w.url;
+  $('#edit-name').value = w.name || '';
   $('#edit-url').value = w.url;
   $('#edit-intent').value = w.intent;
   $('#edit-interval').value = String(w.interval_minutes);
@@ -252,7 +252,7 @@ $('#edit-overlay').addEventListener('click', async (ev) => {
     const name = $('#edit-name').value.trim();
     if (!url || !intent) { toast('URL and intent are both required'); return; }
     const body = {
-      name: name || url,
+      name: name,               // empty = clear it; a re-fit may auto-name again
       url, intent,
       interval_minutes: Number($('#edit-interval').value),
       notify_email: $('#edit-notify').checked,

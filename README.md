@@ -13,7 +13,9 @@ Day-to-day polling makes zero LLM calls.
 ## What it does
 
 - **Add a watch**: paste a URL, describe the change you want to hear about,
-  pick a check frequency (default: once a day).
+  pick a check frequency (default: once a day). Optionally give it a friendly
+  name ("Double X film restock") — otherwise the row is titled with the URL.
+  Everything (including the name) is editable later from the pencil sheet.
 - **Onboarding**: Watcher fetches the page and asks the LLM for a small
   JSON detection spec — literal "must appear" / "must be absent" strings plus
   the model's own prediction of whether your condition holds *right now*.

@@ -12,7 +12,7 @@ def test_create_list_get(conn):
     assert dbmod.list_watches(conn) == []
     w = _mk(conn)
     assert w["status"] == "pending" and w["spec_json"] is None
-    assert w["name"] == w["url"]                       # display name defaults to url
+    assert w["name"] is None and w["name_is_auto"] == 0   # unnamed: onboarding auto-guesses
     w2 = dbmod.create_watch(conn, "https://e.example/p", "i", 60, 1, name="Double X")
     assert w2["name"] == "Double X"
     assert w["interval_minutes"] == 1440 and w["notify_email"] == 1
@@ -23,7 +23,9 @@ def test_create_list_get(conn):
 
 
 def test_name_migration_backfills(tmp_path):
-    """Old DBs (no name column) gain it additively and backfill from url."""
+    """Old DBs (no name column) gain the columns additively; a name that is
+    just the url was never a real name and goes back to NULL for the
+    auto-guesser, while genuine names survive with name_is_auto=0."""
     import sqlite3
     path = str(tmp_path / "old.sqlite")
     legacy = sqlite3.connect(path)
@@ -36,11 +38,16 @@ def test_name_migration_backfills(tmp_path):
         " last_detail TEXT, fail_streak INTEGER NOT NULL DEFAULT 0,"
         " onboard_error TEXT, created_at TEXT, updated_at TEXT)")
     legacy.execute("INSERT INTO watches (url, intent) VALUES ('https://x.example/p', 'i')")
+    legacy.execute("INSERT INTO watches (url, intent) VALUES ('https://y.example/p', 'i')")
     legacy.commit()
     legacy.close()
     c = dbmod.connect(path)
     dbmod.init_db(c)                      # runs _migrate
-    assert dbmod.list_watches(c)[0]["name"] == "https://x.example/p"
+    rows = {r["url"]: r for r in dbmod.list_watches(c)}
+    assert rows["https://x.example/p"]["name"] is None       # url-name handed to the guesser
+    dbmod.update_watch(c, rows["https://y.example/p"]["id"], {"name": "Keeper"})
+    dbmod.init_db(c)                      # idempotent re-run must not clobber it
+    assert dbmod.get_watch(c, rows["https://y.example/p"]["id"])["name"] == "Keeper"
     c.close()
 
 
