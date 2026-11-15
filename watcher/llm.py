@@ -65,7 +65,10 @@ def chat(cfg: dict, messages: list[dict], *, temperature: float = 0.0,
     data = _post(base + "/chat/completions", payload, llm.get("api_key", ""),
                  llm.get("timeout_seconds", 90))
     try:
-        return data["choices"][0]["message"]["content"] or ""
+        return data["choices"][0]["message"]["content"] or \
+            data["choices"][0]["message"].get("reasoning_content") or ""
+        # reasoning-style backends sometimes leave content empty and put the
+        # whole reply in reasoning_content; chat_json still extracts the JSON
     except (KeyError, IndexError, TypeError) as e:
         raise LLMError(f"malformed chat response: {str(data)[:300]}") from e
 

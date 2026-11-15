@@ -65,11 +65,16 @@ def build_spec(cfg: dict, url: str, intent: str, html: str) -> tuple[dict | None
     max_chars = cfg["llm"].get("max_html_chars", 24000)
     digest = page_digest(html, max_chars)
     feedback = None
-    for _ in range(2):                       # initial attempt + one correction round
+    for _attempt in range(2):                # initial attempt + one correction round
         try:
             raw = llm.chat_json(cfg, _prompt(url, intent, digest, feedback))
         except llm.LLMError as e:
-            return None, None, str(e)
+            # a flaky endpoint reply (empty content, garbage JSON, timeout) is
+            # retryable: the feedback line changes the prompt, so attempt 2 is
+            # not the same deterministic call. Only a second failure aborts.
+            feedback = f"your previous reply was unusable ({e}); " \
+                "reply with only the JSON object"
+            continue
         current_met = raw.pop("current_met", None)
         suggested = raw.pop("name", None)
         if not isinstance(suggested, str) or not suggested.strip():

@@ -96,6 +96,17 @@ def test_build_spec_llm_error_returns_error(monkeypatch):
     assert spec is None and name is None and "endpoint down" in err
 
 
+def test_build_spec_recovers_from_transient_llm_flake(monkeypatch):
+    """One empty/garbage reply (the 2026-11-15 vLLM live flake) must not abort
+    onboarding — the retry round fixes it."""
+    calls = _script_llm(monkeypatch, [llm.LLMError("no JSON object in model reply: ''"),
+                                      GOOD_SPEC])
+    spec, name, err = onboard.build_spec({"llm": {"max_html_chars": 4000}},
+                                         "https://x.example/p", "back in stock", STOCK_HTML)
+    assert err is None and spec is not None and name == "Double X — back in stock"
+    assert calls["n"] == 2 and "unusable" in calls["prompts"][1]
+
+
 def test_build_spec_missing_current_met_is_corrected(monkeypatch):
     no_pred = {k: v for k, v in GOOD_SPEC.items() if k != "current_met"}
     calls = _script_llm(monkeypatch, [no_pred, GOOD_SPEC])
