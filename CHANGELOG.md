@@ -7,10 +7,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- Watches have a display `name`: set it when adding (or edit it later in the
-  pencil sheet); it defaults to the URL and becomes the row title, with the
-  raw URL kept as a small subtitle. Additive DB migration backfills existing
-  rows from their url.
+- Watches have a display `name`. The onboarding LLM pass auto-guesses one
+  (product/page title + intent, <= 60 chars) for unnamed watches; a
+  user-typed name always wins and survives re-fits, and clearing it hands the
+  name back to the guesser. Additive DB migrations backfill old rows.
+- `scripts/setup.sh`: idempotent one-shot setup — venv, both requirements
+  files, `core.hooksPath` (a local setting that does not survive cloning),
+  `config.json` seeded from the new `config.example.json`, and Playwright
+  Chromium ensured via a real launch test (`--no-browser` / `--force-browser`).
 
 ### Fixed
 
@@ -22,6 +26,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   (2026-11-15). `create_app` now refuses implicit-config writes under
   `WATCHER_TEST_MODE` (set by conftest), fixtures pass an explicit tmp
   config path, and a tripwire test asserts `./config.json` never changes.
+- A single flaky LLM reply (empty content from vLLM, seen live 2026-11-15)
+  aborted onboarding to `needs_review`; it is now retried once as feedback,
+  and `llm.chat` falls back to `reasoning_content` when `content` is empty.
+- Settings Save no longer persists an env-provided `llm.api_key` to disk.
+- The edit sheet no longer silently clobbers off-preset intervals (e.g. a
+  120-min watch created via the API): the frequency select gains the
+  watch's actual option instead of snapping to the first preset.
 
 ### Changed
 

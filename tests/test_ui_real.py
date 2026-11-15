@@ -281,6 +281,29 @@ def test_edit_watch_sheet(page, world):
     assert page.console_messages == [], page.console_messages
 
 
+def test_edit_preserves_custom_interval(page, world):
+    """An API-created watch with an off-preset interval (45 min) must survive
+    an edit-sheet Save: the select gains the option instead of silently
+    snapping to a preset."""
+    body = json.dumps({"url": world["target"] + "/product",
+                       "intent": "anything", "interval_minutes": 45,
+                       "notify_email": False}).encode()
+    req = urllib.request.Request(world["base"] + "/api/watches", data=body,
+                                 headers={"Content-Type": "application/json"},
+                                 method="POST")
+    urllib.request.urlopen(req, timeout=5)
+    page.goto(world["base"] + "/", wait_until="networkidle")
+    page.wait_for_selector(".watch.ready", timeout=WAIT_MS)
+    assert "every 45 min" in page.locator(".w-meta").first.inner_text()
+    page.locator('[data-act="edit"]').first.click()
+    page.wait_for_selector("#edit-overlay", state="visible")
+    assert page.input_value("#edit-interval") == "45"
+    page.click("#save-edit")
+    page.wait_for_selector("#edit-overlay", state="hidden", timeout=WAIT_MS)
+    page.wait_for_selector(".watch.ready", timeout=WAIT_MS)
+    assert "every 45 min" in page.locator(".w-meta").first.inner_text()
+
+
 def test_pause_and_resume(page, world):
     page.goto(world["base"] + "/", wait_until="networkidle")
     _add_watch(page, world["target"] + "/product", "price drop")

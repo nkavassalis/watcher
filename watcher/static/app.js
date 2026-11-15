@@ -220,7 +220,15 @@ function openEdit(id) {
   $('#edit-name').value = w.name || '';
   $('#edit-url').value = w.url;
   $('#edit-intent').value = w.intent;
-  $('#edit-interval').value = String(w.interval_minutes);
+  const sel = $('#edit-interval');
+  const want = String(w.interval_minutes);
+  // an API-created watch can carry an interval the preset list lacks;
+  // without this the select silently snaps to the first option and Save
+  // would clobber the real interval
+  if (![...sel.options].some((o) => o.value === want)) {
+    sel.add(new Option(`every ${want} min`, want));
+  }
+  sel.value = want;
   $('#edit-notify').checked = !!w.notify_email;
   $('#edit-overlay').hidden = false;
 }

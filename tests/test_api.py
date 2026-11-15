@@ -208,6 +208,23 @@ def test_test_mode_blocks_implicit_config_write(tmp_path, monkeypatch):
 
 # ---- error shape -------------------------------------------------------------
 
+def test_save_does_not_launder_env_api_key(tmp_path, monkeypatch):
+    """An env-provided secret must not reach disk just because someone
+    clicked Save in the settings UI; a file-origin key is kept."""
+    from conftest import inert_cfg
+
+    from watcher import config as configmod
+    monkeypatch.setenv("WATCHER_LLM_API_KEY", "env-secret")
+    cfg = inert_cfg()
+    cfg["llm"]["api_key"] = "env-secret"
+    p = tmp_path / "c.json"
+    configmod.save(str(p), cfg)
+    assert json.loads(p.read_text())["llm"]["api_key"] == ""
+    cfg["llm"]["api_key"] = "file-key"
+    configmod.save(str(p), cfg)
+    assert json.loads(p.read_text())["llm"]["api_key"] == "file-key"
+
+
 def test_errors_under_api_are_json(client):
     for r in (client.post("/api/watches", data="x"),
               client.put("/api/watches/nope", json={}),

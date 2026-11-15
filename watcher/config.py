@@ -89,6 +89,11 @@ def save(path: str, cfg: dict) -> None:
         "email": {k: cfg["email"].get(k) for k in ("enabled", "to", "from_addr", "from_name", "gmail_dir")},
         "scheduler": {k: cfg["scheduler"].get(k) for k in ("default_interval_minutes", "min_interval_minutes")},
     }
+    # never launder an env-provided secret onto disk just because someone
+    # clicked Save in the settings UI
+    env_key = os.environ.get("WATCHER_LLM_API_KEY")
+    if env_key and editable["llm"].get("api_key") == env_key:
+        editable["llm"]["api_key"] = ""
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     with open(path, "w", encoding="utf-8") as fh:
         json.dump(editable, fh, indent=2)

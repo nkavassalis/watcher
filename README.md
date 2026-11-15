@@ -13,9 +13,10 @@ Day-to-day polling makes zero LLM calls.
 ## What it does
 
 - **Add a watch**: paste a URL, describe the change you want to hear about,
-  pick a check frequency (default: once a day). Optionally give it a friendly
-  name ("Double X film restock") — otherwise the row is titled with the URL.
-  Everything (including the name) is editable later from the pencil sheet.
+  pick a check frequency (default: once a day). The onboarding LLM pass also
+  gives the watch a short friendly name ("Reflx Lab Double-X — back in
+  stock"); anything you type in the edit sheet wins and is never overwritten,
+  and clearing the name lets the LLM re-guess it on the next re-fit.
 - **Onboarding**: Watcher fetches the page and asks the LLM for a small
   JSON detection spec — literal "must appear" / "must be absent" strings plus
   the model's own prediction of whether your condition holds *right now*.
@@ -72,7 +73,7 @@ built-in defaults, with these environment variables as overrides:
 |---|---|---|
 | `llm.base_url` | `http://127.0.0.1:8000/v1` | OpenAI-compatible endpoint (onboarding only) |
 | `llm.model` | `""` (first served) | model id for chat + onboarding |
-| `llm.api_key` | `""` | sent as bearer if set; **file/env only, never UI-editable** |
+| `llm.api_key` | `""` | sent as bearer if set; **file/env only, never UI-editable, and a key supplied via the environment is never written back to disk** |
 | `email.enabled` | `false` | send Gmail notifications on trigger |
 | `email.to` | `""` | recipient |
 | `email.from_addr` | `""` | must exist in Gmail "Send as" |

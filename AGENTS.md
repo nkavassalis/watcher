@@ -40,6 +40,8 @@ watcher/templates/      one template; watcher/static/ one JS + one CSS
 tests/                  hermetic tier + `-m ui` Playwright tier
 scripts/gate.sh         the pre-push gate (also run by .githooks/pre-push)
 scripts/secret-scan.sh  run before every commit/push
+scripts/setup.sh        idempotent env setup (venv, deps, hooks, chromium, config seed)
+config.example.json     placeholder config seeded by setup.sh on fresh clones
 config.json             LOCAL ONLY (gitignored): real LLM endpoint etc.
 ```
 
@@ -64,12 +66,12 @@ bind, `/api/health` ok, graination watch onboarded + polled.
 ## How to run the tests
 
 ```bash
-.venv/bin/python -m pytest              # hermetic tier: 97 pass, 1 skip (theme)
-.venv/bin/python -m pytest -m ui        # browser tier: 7 pass; needs port 8177 free
+.venv/bin/python -m pytest              # hermetic tier: 107 pass, 1 skip (theme)
+.venv/bin/python -m pytest -m ui        # browser tier: 8 pass; needs port 8177 free
 .venv/bin/ruff check .                  # clean
 ```
 
-Current state (2026-11-15): 97 hermetic + 7 browser tests, all passing on
+Current state (2026-11-15): 107 hermetic + 8 browser tests, all passing on
 Python 3.12.3 / Flask 3.1 / Playwright 1.63 (pinned). The ui tier boots the
 real app subprocess plus a **local stub shop and local stub OpenAI endpoint**
 — no third party is contacted by either tier.
@@ -113,6 +115,21 @@ real app subprocess plus a **local stub shop and local stub OpenAI endpoint**
   browser per second.
 - **Settings UI cannot edit `llm.api_key` or `gmail_dir`** — file/env only;
   `masked_config()` masks the key. Keep new secrets out of the UI too.
+
+- **Name policy**: the onboarding call also returns a short human `name`
+  (<= 60 chars), stored only as an *auto*-name (`name_is_auto=1`) on unnamed
+  watches. A user-typed name is never overwritten — not even by re-fits;
+  re-fits refresh auto-names. Clearing the name in the edit sheet hands it
+  back to the guesser. Live-verified 2026-11-15: the house vLLM named the
+  graination watch "Reflx Lab Double-X 5222 — back in stock" (auto:1) on a
+  throwaway instance, and left Nick's hand-typed "Kodak Double X" alone on
+  the live one (auto:0).
+- **A flaky LLM reply is retryable, not fatal** (scar 2026-11-15: vLLM once
+  returned empty content and the watch went needs_review on one hiccup):
+  `build_spec` turns an `LLMError` into feedback for attempt 2, and
+  `llm.chat` falls back to `reasoning_content` when `content` is empty.
+- **Settings Save never launders an env-provided `api_key` onto disk**
+  (`config.save` blanks it; a file-origin key round-trips).
 
 ## Invariants (test-enforced unless noted)
 
@@ -180,6 +197,13 @@ reasoning trace (`agent-egress-defense` doctrine).
 ## Known issues / TODOs
 
 - **No auth** — deliberate; README warns. Perimeter owns it.
+- Re-fitting or editing the url/intent of a **paused** watch resumes it (the
+  watch goes `pending` and the scheduler's onboarding ends at `ready`).
+  Acceptable for single-user; a `paused`-aware onboarding finish is the fix
+  if it ever bites.
+- The manual **check-now** route runs the fetch ladder synchronously in the
+  request thread — with the browser rungs enabled against a slow site it can
+  block that request for ~90 s (browser timeout + settle + rescue caps).
 - Rungs 2-4 (browser ladder) have never fired against a real live challenge —
   see Unverified. Treat "browser rung works" as test-proven only.
 - Cookie jar + browser cooldown are in-memory: a restart re-learns cookies.
@@ -202,9 +226,12 @@ reasoning trace (`agent-egress-defense` doctrine).
   (recipient not yet configured); `notify.py` has faked-urlopen tests only.
   Nick: enable in config.json (`email.enabled`, `email.to`) and trigger a
   hash-mode watch to prove the mailbox path end to end.
-- Live onboarding verified once (graination + the house vLLM endpoint, spec
+- Live onboarding verified against the house vLLM endpoint: graination spec
   on schema.org availability, cross-check passed, manual check returned
-  "blocked by: schema.org/OutOfStock"). Not a statistical sample.
+  "not yet — still shows: schema.org/OutOfStock", and auto-naming produced
+  "Reflx Lab Double-X 5222 — back in stock" (throwaway instance, 2026-11-15).
+  One endpoint flake (empty reply) was caught live and is now retried.
+  Not a statistical sample.
 - The ui tier ran headless on this box only; no real-device/phone check of
   the mobile shell (Playwright 390px assertions stand in).
 - Rung-4 wall-clock cap (45 s) is unit-tested with patched sleep, not real
