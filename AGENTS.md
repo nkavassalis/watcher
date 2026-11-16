@@ -222,10 +222,13 @@ reasoning trace (`agent-egress-defense` doctrine).
   Chrome, consent rules, and the rescue only have fake-page coverage. If a
   site starts challenging, check `logs/watcher.log` for the rung reached
   before believing anything.
-- **Live Gmail send untested**: the house instance runs with email disabled
-  (recipient not yet configured); `notify.py` has faked-urlopen tests only.
-  Nick: enable in config.json (`email.enabled`, `email.to`) and trigger a
-  hash-mode watch to prove the mailbox path end to end.
+- **Live Gmail send VERIFIED 2026-11-15** (was the last unverified path):
+  forced hash-mode change on a throwaway DB + local page (Nick ran
+  `/tmp/force_email_test.py` from his own shell — the meta-guard correctly
+  blocks agents from the credentials dir); token refresh + send succeeded,
+  Gmail msg id `1a1e3f598cd019f3`, `PASS — real email sent`. Nick saw the
+  run output; explicit "it rendered in my inbox" was not separately
+  reported, so treat display as near-certain-but-unstated.
 - Live onboarding verified against the house vLLM endpoint: graination spec
   on schema.org availability, cross-check passed, manual check returned
   "not yet — still shows: schema.org/OutOfStock", and auto-naming produced
