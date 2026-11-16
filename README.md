@@ -33,12 +33,20 @@ Day-to-day polling makes zero LLM calls.
 - **Notify**: when the condition flips to met, you get an email via the
   Gmail API (stored-OAuth, no SDK), plus a row in the check history. Emails
   are edge-triggered: one per transition into "changed", not one per poll.
+- **Self-healing detectors**: if a site redesigns around a detector (neither
+  the "met" nor the "not yet" signal appears on two consecutive real polls),
+  Watcher re-fits it with the LLM and **emails you the outcome** — always,
+  pass or fail. Page outages and bot walls never count toward staleness, a
+  re-fit that meets one alerts you instead of fitting garbage, the old
+  detector survives any failed re-fit, and a second staleness within 24h
+  waits for you in `needs_review` instead of burning more LLM calls.
 
 ## Requirements
 
 - Python 3.11+ (developed on 3.12)
 - An OpenAI-compatible chat endpoint (vLLM, llama.cpp, Ollama, or a hosted
-  API) reachable from the Watcher box — used at onboarding only
+  API) reachable from the Watcher box — used at onboarding and for rare
+  detector re-fits, never on routine polls
 - Optional: `playwright` + Chromium for the bot-check browser rungs
   (`pip install playwright && playwright install chromium`); without it the
   ladder stops at the HTTP rungs

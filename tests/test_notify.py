@@ -110,3 +110,26 @@ def test_notify_change_formats_message(cfg, fake_urlopen):
     mid = notify.notify_change(cfg, {"url": "https://x.example/p",
                                      "intent": "back in stock"}, "trigger condition met")
     assert mid == "msg-42"
+
+
+def test_notify_refit_subject_and_body(monkeypatch):
+    from watcher import notify
+    sent = []
+    monkeypatch.setattr(notify, "send",
+                        lambda cfg, s, b, html=False: sent.append((s, b)) or "mid")
+    cfg = {"email": {"enabled": True, "to": "n@e.com"}}
+    w = {"url": "https://x.example/p", "intent": "back in stock"}
+    assert notify.notify_refit(cfg, w, True, "new detector") == "mid"
+    assert "succeeded" in sent[0][0] and "new detector" in sent[0][1]
+    notify.notify_refit(cfg, w, False, "page down")
+    assert "FAILED" in sent[1][0] and "page down" in sent[1][1]
+
+
+def test_notify_refit_silent_when_disabled(monkeypatch):
+    from watcher import notify
+    monkeypatch.setattr(notify, "send",
+                        lambda *a, **k: (_ for _ in ()).throw(AssertionError))
+    assert notify.notify_refit({"email": {"enabled": False, "to": "n@e.com"}},
+                               {"url": "u", "intent": "i"}, True, "x") is None
+    assert notify.notify_refit({"email": {"enabled": True, "to": ""}},
+                               {"url": "u", "intent": "i"}, False, "x") is None

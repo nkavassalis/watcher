@@ -123,6 +123,31 @@ def is_block(code: int, headers, body: str) -> bool:
     return code in BLOCK_STATUSES and not is_challenge(code, headers, body)
 
 
+# HTTP 200s that are really an outage or a soft bot wall: error pages and
+# interstitials served with a success code. Used ONLY to suppress staleness
+# verdicts and to refuse re-fitting — never on the trigger path — so the
+# signature list is deliberately biased toward MISSING staleness, never
+# firing a re-fit because a real page happened to mention "rate limit".
+OUTAGE_SIGNATURES = (
+    "just a moment", "attention required", "enable javascript and cookies",
+    "service unavailable", "bad gateway", "gateway timeout", "too many requests",
+    "rate limit", "access denied", "are you a robot", "temporarily unavailable",
+    "server error", "checking your browser", "verify you are a human",
+)
+
+
+def looks_unreal(code: int, body: str) -> bool:
+    """A 200 that is not really the page: too short to be a page, or carrying
+    an outage/bot-wall signature in its head."""
+    if code != 200:
+        return False
+    text = body or ""
+    if len("".join(text.split())) < 300:   # all-whitespace padding counts as empty
+        return True
+    head = text[:4096].lower()
+    return any(s in head for s in OUTAGE_SIGNATURES)
+
+
 FULL_BROWSER_HEADERS = {
     "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,"
               "image/webp,*/*;q=0.8",

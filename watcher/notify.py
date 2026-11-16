@@ -97,3 +97,22 @@ def notify_change(cfg: dict, watch: dict, detail: str) -> str | None:
             f"What you asked to watch for: {watch['intent']}\n"
             f"Check result: {detail}\n")
     return send(cfg, subject, body)
+
+
+def notify_refit(cfg: dict, watch: dict, ok: bool, reason: str) -> str | None:
+    """Operational alert for the auto re-fit lifecycle (Nick: ALWAYS email
+    when a re-fit runs, and when it fails). Sent regardless of the per-watch
+    notify_email toggle — a blind detector is not a 'change' the user opted
+    out of. Respects only the global email.enabled/to switches."""
+    ecfg = cfg["email"]
+    if not ecfg.get("enabled") or not ecfg.get("to"):
+        return None
+    outcome = "succeeded" if ok else "FAILED"
+    subject = f"Watcher: {watch['url']} — detector auto-refit {outcome}"
+    body = (f"The detector for this watch went blind (none of its needles survived "
+            f"a page change) and Watcher automatically re-fitted it with the LLM.\n\n"
+            f"URL: {watch['url']}\n"
+            f"What you asked to watch for: {watch['intent']}\n"
+            f"Outcome: {outcome}\n"
+            f"Details: {reason}\n")
+    return send(cfg, subject, body)

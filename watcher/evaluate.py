@@ -82,6 +82,7 @@ def evaluate(spec: dict, html: str, baseline_hash: str | None) -> dict:
             "matched": None,
             "snapshot_hash": h,
             "baseline_hash": h,
+            "blind": False,
         }
 
     present_hits = [n for n in spec.get("present", []) if n.lower() in hay]
@@ -105,4 +106,10 @@ def evaluate(spec: dict, html: str, baseline_hash: str | None) -> dict:
         "matched": matched,
         "snapshot_hash": fingerprint(html),
         "baseline_hash": None,
+        # "blind": the page shows NEITHER the wanted nor the not-yet signal.
+        # Only decidable when the spec carries absent needles — an
+        # appearance-only spec (absent=[]) legitimately has zero hits while
+        # waiting, and must never be called blind. The scheduler turns two
+        # consecutive blind polls of a real page into an auto re-fit.
+        "blind": bool(spec.get("absent")) and not present_hits and not absent_hits,
     }

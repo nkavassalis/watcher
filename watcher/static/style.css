@@ -50,6 +50,7 @@ body {
 .watch.triggered .glyph { color: var(--accent); font-weight: 700; }
 .watch.needs_review .glyph { color: var(--danger); font-weight: 700; }
 .watch.pending .glyph { color: var(--warn); }
+.watch.refitting .glyph { color: var(--warn); }
 .w-title { display: block; font-size: .98rem; font-weight: 600; color: var(--fg);
   text-decoration: none; word-break: break-word; }
 .w-sub { margin: 0; }

@@ -66,12 +66,12 @@ bind, `/api/health` ok, graination watch onboarded + polled.
 ## How to run the tests
 
 ```bash
-.venv/bin/python -m pytest              # hermetic tier: 107 pass, 1 skip (theme)
+.venv/bin/python -m pytest              # hermetic tier: 121 pass, 1 skip (theme)
 .venv/bin/python -m pytest -m ui        # browser tier: 8 pass; needs port 8177 free
 .venv/bin/ruff check .                  # clean
 ```
 
-Current state (2026-11-15): 107 hermetic + 8 browser tests, all passing on
+Current state (2026-11-15): 121 hermetic + 8 browser tests, all passing on
 Python 3.12.3 / Flask 3.1 / Playwright 1.63 (pinned). The ui tier boots the
 real app subprocess plus a **local stub shop and local stub OpenAI endpoint**
 — no third party is contacted by either tier.
@@ -128,6 +128,23 @@ real app subprocess plus a **local stub shop and local stub OpenAI endpoint**
   returned empty content and the watch went needs_review on one hiccup):
   `build_spec` turns an `LLMError` into feedback for attempt 2, and
   `llm.chat` falls back to `reasoning_content` when `content` is empty.
+- **Self-healing detectors (two-strike staleness → auto re-fit).** A condition
+  spec carrying `absent` needles that finds NEITHER present nor absent on the
+  page is *blind* — the site redesigned around it. One blind poll of a real
+  page writes a `suspect` check row (no drama); the SECOND consecutive one
+  marks `stale`, keeps the old spec, and sets status `refitting`, which the
+  onboarding pass picks up like a pending watch. Outage/bot-wall 200s
+  (`net.looks_unreal`: <300 chars of non-whitespace content, or an
+  outage/interstitial signature in the head) record `unreal` and NEVER count —
+  a page outage must not burn the detector or fire an LLM call. The re-fit
+  itself refuses to fit a spec to an unreal page ("NEW bot check or outage"
+  alert instead), keeps the OLD spec on every failure path, and — Nick's rule
+  — **always emails the outcome** (success and failure), independent of the
+  per-watch `notify_email` toggle (operational alert ≠ change notification).
+  Cooldown: blind again within `REFIT_COOLDOWN_HOURS` (24) of the last
+  auto-refit → `needs_review` + email, no second LLM burn. Appearance-only
+  specs (`absent: []`) are never blind — zero hits is their normal waiting
+  state; this is a documented detection limit, not an oversight.
 - **Settings Save never launders an env-provided `api_key` onto disk**
   (`config.save` blanks it; a file-origin key round-trips).
 
@@ -137,6 +154,9 @@ real app subprocess plus a **local stub shop and local stub OpenAI endpoint**
 2. `/api/*` errors are JSON, never HTML 500. `test_errors_under_api_are_json`
 3. `record_check()` is THE one place a check outcome is written. (review)
 4. Poll path makes zero LLM calls. `test_periodic_check_makes_zero_llm_calls`
+   — re-scoped 2026-11-15 with auto re-fit: suspect/stale/cooldown branches
+   are all zero-LLM tested; a `stale` event hands off to exactly ONE bounded
+   onboarding cycle and the 24h cooldown caps the burn.
 5. Rescue model may only click texts present in the code-collected snapshot;
    unknown action / garbage JSON / LLM error ⇒ give_up, never more autonomy.
    `test_browser.py` gate suite.

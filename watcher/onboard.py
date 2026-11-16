@@ -11,9 +11,12 @@ wrong thing.
 from __future__ import annotations
 
 import json
+import logging
 import re
 
-from . import evaluate, llm, net
+from . import evaluate, llm, net, notify
+
+log = logging.getLogger("watcher.onboard")
 
 LDJSON_RE = re.compile(
     r'<script[^>]+type=["\']application/ld\+json["\'][^>]*>(.*?)</script>',
@@ -98,19 +101,58 @@ def build_spec(cfg: dict, url: str, intent: str, html: str) -> tuple[dict | None
     return None, None, f"spec failed cross-check after 2 attempts: {feedback}"
 
 
+def _fail_refit(cfg: dict, conn, watch: dict, reason: str) -> dict:
+    """Auto re-fit failure: the OLD spec survives (a blind detector beats no
+    detector — the page may come back), the watch pauses for review, and the
+    user always gets the bad news by email."""
+    from . import db as dbmod
+    updated = dbmod.set_spec(conn, watch["id"], watch["spec_json"],
+                             "needs_review", reason)
+    try:
+        notify.notify_refit(cfg, watch, False,
+                            reason + " — the old detector was kept and the watch "
+                            "is paused for review")
+    except notify.NotifyError as e:
+        log.warning("refit failure email failed for watch %s: %s", watch["id"], e)
+    return updated
+
+
 def onboard(cfg: dict, conn, watch: dict) -> dict:
-    """Fetch + build spec + persist. Never raises; outcome is on the watch row."""
+    """Fetch + build spec + persist. Never raises; outcome is on the watch row.
+
+    Two entry modes: 'pending' (first onboarding — silent outcomes, the user
+    is watching the UI) and 'refitting' (auto re-fit after the detector went
+    blind — the OLD spec survives every failure path, and the user ALWAYS
+    gets an email with the outcome, including a re-fit that hits a page
+    outage or a new bot wall)."""
+    refit = watch["status"] == "refitting"
     result = net.fetch(watch["url"])
     if not result.ok:
         reason = result.error or f"fetch {result.status} (HTTP {result.code})"
         from . import db as dbmod
         dbmod.record_check(conn, watch["id"], result.status, rung=result.rung,
                            detail=f"onboard fetch failed: {reason}")
+        if refit:
+            return _fail_refit(cfg, conn, watch,
+                               f"could not re-fetch the page while re-fitting: {reason}")
         return dbmod.set_spec(conn, watch["id"], None, "needs_review",
                               f"could not fetch page: {reason}")
-    spec, suggested_name, err = build_spec(cfg, watch["url"], watch["intent"], result.text)
     from . import db as dbmod
+    if refit and net.looks_unreal(result.code, result.text):
+        # a 200-shaped outage or a NEW bot wall: fitting a detector to an
+        # interstitial would produce a confidently wrong watcher
+        dbmod.record_check(conn, watch["id"], "unreal", rung=result.rung,
+                           detail="re-fit fetch looks like an outage/bot-wall")
+        return _fail_refit(
+            cfg, conn, watch,
+            "the page appears to be DOWN or behind a NEW bot check (HTTP 200 "
+            "interstitial) — refusing to fit a detector to it; the watch is "
+            "paused for review")
+    spec, suggested_name, err = build_spec(cfg, watch["url"], watch["intent"], result.text)
     if err:
+        if refit:
+            return _fail_refit(cfg, conn, watch,
+                               f"the LLM could not fit a new detector: {err}")
         return dbmod.set_spec(conn, watch["id"], None, "needs_review", err)
     # The LLM name only sticks while the watch is unnamed, or already carries
     # an auto-name (a re-fit may improve it). A user-typed name is never touched.
@@ -119,5 +161,18 @@ def onboard(cfg: dict, conn, watch: dict) -> dict:
         dbmod.update_watch(conn, watch["id"],
                            {"name": suggested_name, "name_is_auto": 1})
     dbmod.record_check(conn, watch["id"], "ok", rung=result.rung,
-                       detail="detector fitted; watching")
-    return dbmod.set_spec(conn, watch["id"], json.dumps(spec), "ready", None)
+                       detail="detector re-fitted; watching" if refit
+                       else "detector fitted; watching")
+    updated = dbmod.set_spec(conn, watch["id"], json.dumps(spec), "ready", None)
+    if refit:
+        needles = (f"present={spec['present']} absent={spec['absent']}"
+                   if spec["mode"] == "condition" else "mode=hash")
+        try:
+            notify.notify_refit(
+                cfg, watch, True,
+                f"new detector fitted: {needles}"
+                + (f"; notes: {spec['notes']}" if spec["notes"] else "")
+                + ". The watch is watching again.")
+        except notify.NotifyError as e:
+            log.warning("refit success email failed for watch %s: %s", watch["id"], e)
+    return updated

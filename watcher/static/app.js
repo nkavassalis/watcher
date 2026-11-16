@@ -46,7 +46,7 @@ function fmtTime(iso) {
 }
 
 function statusGlyph(w) {
-  if (w.status === 'pending') return '…';
+  if (w.status === 'pending' || w.status === 'refitting') return '…';
   if (w.status === 'needs_review') return '!';
   if (w.status === 'paused') return '⏸';
   if (w.last_status === 'changed') return '▲';

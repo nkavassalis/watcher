@@ -133,3 +133,17 @@ def test_delete_watch_cascades_checks(conn):
     dbmod.record_check(conn, w["id"], "ok")
     dbmod.delete_watch(conn, w["id"])
     assert dbmod.list_checks(conn, w["id"]) == []
+
+
+def test_last_check_status_and_mark_refitting(conn):
+    w = _mk(conn)
+    assert dbmod.last_check_status(conn, w["id"]) is None
+    dbmod.record_check(conn, w["id"], "suspect")
+    assert dbmod.last_check_status(conn, w["id"]) == "suspect"
+    dbmod.record_check(conn, w["id"], "ok")
+    assert dbmod.last_check_status(conn, w["id"]) == "ok"
+    dbmod.mark_refitting(conn, w["id"])
+    got = dbmod.get_watch(conn, w["id"])
+    assert got["status"] == "refitting" and got["auto_refit_at"] is not None
+    # the re-fit queue is the onboarding queue
+    assert [x["id"] for x in dbmod.pending_onboarding(conn)] == [w["id"]]

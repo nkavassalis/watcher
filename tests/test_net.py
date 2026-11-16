@@ -128,3 +128,13 @@ def test_challenge_detection_variants():
 def test_browser_rung_skipped_when_disabled_or_missing(patch_get, monkeypatch):
     patch_get["queue"] = [CHALLENGE, CHALLENGE]
     assert net.fetch("https://cf.example/p").status == "challenged"
+
+
+def test_looks_unreal():
+    from watcher.net import looks_unreal
+    assert looks_unreal(200, "<html>too short to be a page</html>")
+    assert looks_unreal(200, "<html><h1>Just a Moment</h1>" + "x" * 400 + "</html>")
+    assert looks_unreal(200, "<html>" + " " * 400 + "</html>")   # whitespace-only
+    assert not looks_unreal(200, "<html><body>" + "real product content " * 40
+                            + "</body></html>")
+    assert not looks_unreal(404, "x")        # non-200 is not this function's job

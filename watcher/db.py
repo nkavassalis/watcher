@@ -68,6 +68,11 @@ def iso_plus(minutes: float) -> str:
         "%Y-%m-%dT%H:%M:%SZ")
 
 
+def iso_minus(hours: float) -> str:
+    return (datetime.now(UTC) - timedelta(hours=hours)).strftime(
+        "%Y-%m-%dT%H:%M:%SZ")
+
+
 def connect(path: str) -> sqlite3.Connection:
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     conn = sqlite3.connect(path)
@@ -95,6 +100,8 @@ def _migrate(conn: sqlite3.Connection) -> None:
         # a name that is just the url was never a real name: hand it back to
         # the onboarding auto-guesser (user-typed names keep name_is_auto=0)
         conn.execute("UPDATE watches SET name=NULL WHERE name=url")
+    if "auto_refit_at" not in cols:
+        conn.execute("ALTER TABLE watches ADD COLUMN auto_refit_at TEXT")
 
 
 def path_of(conn: sqlite3.Connection) -> str:
@@ -174,9 +181,30 @@ def due_watches(conn: sqlite3.Connection, now: str) -> list[dict]:
 
 
 def pending_onboarding(conn: sqlite3.Connection) -> list[dict]:
+    # 'refitting' = auto re-fit queued by the staleness two-strike; the old
+    # spec stays in place until the new one validates
     rows = conn.execute(
-        "SELECT * FROM watches WHERE status='pending' ORDER BY created_at, id").fetchall()
+        "SELECT * FROM watches WHERE status IN ('pending','refitting')"
+        " ORDER BY created_at, id").fetchall()
     return [dict(r) for r in rows]
+
+
+def last_check_status(conn: sqlite3.Connection, watch_id: int) -> str | None:
+    """Status of the most recent check row — the staleness two-strike uses
+    this to remember a first blind poll without any new watch column."""
+    row = conn.execute(
+        "SELECT status FROM checks WHERE watch_id=? ORDER BY id DESC LIMIT 1",
+        (watch_id,)).fetchone()
+    return row["status"] if row else None
+
+
+def mark_refitting(conn: sqlite3.Connection, watch_id: int) -> None:
+    """Queue an auto re-fit: keeps spec_json (a blind detector beats no
+    detector if the re-fit fails) and stamps the cooldown clock."""
+    conn.execute(
+        "UPDATE watches SET status='refitting', auto_refit_at=?, updated_at=?"
+        " WHERE id=?", (now_iso(), now_iso(), watch_id))
+    conn.commit()
 
 
 def schedule_next(conn: sqlite3.Connection, watch_id: int, minutes: int) -> None:

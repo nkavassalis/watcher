@@ -7,6 +7,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Self-healing detectors.** If a condition watch finds neither its "met"
+  nor its "not yet" signal on two consecutive real polls (the site redesigned
+  around the detector), Watcher marks it stale, re-fits the detector with the
+  LLM, and **emails you the outcome** — always, including failures, and
+  regardless of the per-watch email toggle. Page outages and bot walls never
+  count toward staleness and a re-fit that meets one alerts instead of
+  fitting garbage; the old detector survives every failed re-fit; a second
+  staleness inside 24 hours goes to `needs_review` for a human rather than
+  burning more LLM calls.
+
 - Watches have a display `name`. The onboarding LLM pass auto-guesses one
   (product/page title + intent, <= 60 chars) for unnamed watches; a
   user-typed name always wins and survives re-fits, and clearing it hands the
